@@ -1,32 +1,25 @@
 import streamlit as st
-import requests
+from transformers import pipeline
 from PIL import Image
 
-API_URL = "https://api-inference.huggingface.co/models/google/vit-base-patch16-224"
+st.title("Bild-Klassifizierung mit ViT")
 
-headers = {
-    "Authorization": "Bearer DEIN_API_KEY"
-}
+# Modell laden (wird gecached, damit es nicht bei jedem Klick neu lädt)
+@st.cache_resource
+def load_model():
+    return pipeline("image-classification", model="google/vit-base-patch16-224")
 
-st.title("🔍 Fundsachen-Erkennung")
+classifier = load_model()
 
-uploaded_file = st.file_uploader("📸 Bild hochladen", type=["jpg", "png", "jpeg"])
+uploaded_file = st.file_uploader("Wähle ein Bild...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert("RGB")
-    st.image(image)
-
-    response = requests.post(
-        API_URL,
-        headers=headers,
-        data=uploaded_file.getvalue()  # 🔥 wichtig!
-    )
-
-    if response.status_code != 200:
-        st.error(f"Fehler: {response.status_code}")
-        st.text(response.text)
-    else:
-        result = response.json()
-
-        st.subheader("📌 Ergebnis:")
-        st.write(result)
+    image = Image.open(uploaded_file)
+    st.image(image, caption='Dein Upload', use_column_width=True)
+    
+    # Vorhersage treffen
+    with st.spinner('Klassifiziere...'):
+        results = classifier(image)
+        
+    for res in results:
+        st.write(f"**{res['label']}**: {round(res['score'], 4)}")
